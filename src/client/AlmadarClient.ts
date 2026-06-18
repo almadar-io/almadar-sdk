@@ -22,7 +22,7 @@ import type {
 import { errorFromBody, ServerError } from './errors';
 import { parseSSE } from './sseParser';
 
-const DEFAULT_BASE_URL = 'https://api.almadar.io';
+const DEFAULT_BASE_URL = 'https://studio.almadar.io';
 const POLL_BACKOFF_MS: readonly number[] = [1000, 2000, 5000, 10_000, 30_000];
 
 interface JobStatus {

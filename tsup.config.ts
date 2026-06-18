@@ -19,9 +19,6 @@ export default defineConfig({
     '@almadar/core',
     '@almadar/runtime',
     '@almadar/ui',
-    '@almadar-io/rabit',
-    '@almadar/workspace',
-    '@almadar/server', '@almadar/llm',
     'express',
   ],
 });
