@@ -10,7 +10,7 @@
 import type { Request, Response } from 'express';
 import type { OrbitalSchema } from '@almadar/core';
 import { AlmadarClient } from '../client/AlmadarClient';
-import type { AgentEvent, EditSchemaPatch } from '../types';
+import type { AgentEvent, EditSchemaRequest, EditSchemaPatch, GenerateRequest } from '../types';
 
 // ============================================================================
 // Public option surface
@@ -52,8 +52,8 @@ export function createGenerateHandler(
   opts: GenerateHandlerOptions,
 ): (req: Request, res: Response) => Promise<void> {
   return async (req: Request, res: Response): Promise<void> => {
-    const body = req.body as Record<string, unknown>;
-    const rawPrompt = body['prompt'] ?? body['message'];
+    const body = req.body as GenerateRequest;
+    const rawPrompt = body.prompt ?? body.message;
     const prompt = typeof rawPrompt === 'string' ? rawPrompt : '';
 
     if (!prompt) {
@@ -61,9 +61,9 @@ export function createGenerateHandler(
       return;
     }
 
-    const bodyEndUserId = typeof body['endUserId'] === 'string' ? body['endUserId'] : undefined;
+    const bodyEndUserId = typeof body.endUserId === 'string' ? body.endUserId : undefined;
     const endUserId = bodyEndUserId ?? resolveEndUserId(opts, req);
-    const appId = typeof body['appId'] === 'string' ? body['appId'] : undefined;
+    const appId = typeof body.appId === 'string' ? body.appId : undefined;
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -80,7 +80,7 @@ export function createGenerateHandler(
           writeSseEvent(res, event);
         },
       });
-    } catch (err: unknown) {
+    } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       const errorEvent: AgentEvent = { type: 'error', message };
       writeSseEvent(res, errorEvent);
@@ -103,15 +103,15 @@ export function createEditHandler(
   opts: GenerateHandlerOptions,
 ): (req: Request, res: Response) => Promise<void> {
   return async (req: Request, res: Response): Promise<void> => {
-    const body = req.body as Record<string, unknown>;
-    const appId = typeof body['appId'] === 'string' ? body['appId'] : '';
+    const body = req.body as EditSchemaRequest;
+    const appId = typeof body.appId === 'string' ? body.appId : '';
 
     if (!appId) {
       res.status(400).json({ error: 'appId is required' });
       return;
     }
 
-    const patch = body['patch'] as EditSchemaPatch | undefined;
+    const patch: EditSchemaPatch | undefined = body.patch;
     if (patch === undefined || patch === null || typeof patch !== 'object') {
       res.status(400).json({ error: 'patch is required' });
       return;
@@ -122,7 +122,7 @@ export function createEditHandler(
     try {
       const schema: OrbitalSchema = await client.editSchema(appId, patch);
       res.json(schema);
-    } catch (err: unknown) {
+    } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       res.status(500).json({ error: message });
     }

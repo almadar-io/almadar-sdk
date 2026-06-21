@@ -8,6 +8,27 @@ import type { EntityData, EventPayload, OrbitalSchema } from '@almadar/core';
 export type { EntityData, EventPayload, OrbitalSchema };
 
 /**
+ * Typed request envelope for `createGenerateHandler`.
+ * Body shape: `{ prompt: string; endUserId?: string; appId?: string }`
+ */
+export interface GenerateRequest {
+  prompt?: string;
+  /** Alias accepted alongside `prompt`. */
+  message?: string;
+  endUserId?: string;
+  appId?: string;
+}
+
+/**
+ * Typed request envelope for `createEditHandler`.
+ * Body shape: `{ appId: string; patch: EditSchemaPatch }`
+ */
+export interface EditSchemaRequest {
+  appId?: string;
+  patch?: EditSchemaPatch;
+}
+
+/**
  * Canonical JSON value type — the closure of every value that survives a
  * `JSON.parse(JSON.stringify(x))` round-trip. Used as the JSON-parse output
  * type so we never widen to `unknown` at HTTP boundaries.

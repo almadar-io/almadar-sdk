@@ -1,8 +1,25 @@
 // @vitest-environment node
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { OrbitalSchema } from '@almadar/core';
-import type { AgentEvent } from '../types';
+import type { AgentEvent, GenerateRequest, EditSchemaRequest } from '../types';
 import type { Request, Response } from 'express';
+
+// ─── Typed test-harness interfaces ───────────────────────────────────────────
+
+/** Minimal subset of express.Request used by the handlers under test. */
+interface FakeRequest extends Partial<Request> {
+  body: GenerateRequest | EditSchemaRequest;
+  headers: Record<string, string>;
+}
+
+/** Subset of express.Response methods tracked by the fake. */
+interface FakeResponse extends Partial<Response> {
+  status: ReturnType<typeof vi.fn>;
+  json: ReturnType<typeof vi.fn>;
+  end: ReturnType<typeof vi.fn>;
+  write: ReturnType<typeof vi.fn>;
+  setHeader: ReturnType<typeof vi.fn>;
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -21,34 +38,35 @@ function makeSseStream(events: AgentEvent[]): ReadableStream<Uint8Array> {
 }
 
 function makeFakeFetch(events: AgentEvent[]): typeof fetch {
-  return vi.fn().mockResolvedValue(
+  const mockFn = vi.fn().mockResolvedValue(
     new Response(makeSseStream(events), {
       status: 200,
       headers: { 'content-type': 'text/event-stream' },
     }),
-  ) as unknown as typeof fetch;
+  );
+  return mockFn as typeof fetch;
 }
 
-function makeFakeReq(body: Record<string, unknown> = {}): Request {
-  return {
+function makeFakeReq(body: GenerateRequest | EditSchemaRequest): Request {
+  const req: FakeRequest = {
     body,
     headers: {},
     on: vi.fn(),
-  } as unknown as Request;
+  };
+  return req as Request;
 }
 
-function makeFakeRes(): { res: Response; written: string[]; headers: Record<string, string> } {
+function makeFakeRes(): { res: Response; fake: FakeResponse; written: string[] } {
   const written: string[] = [];
-  const headers: Record<string, string> = {};
-  const res = {
+  const fake: FakeResponse = {
     status: vi.fn().mockReturnThis(),
     json: vi.fn().mockReturnThis(),
     end: vi.fn(),
     write: vi.fn((chunk: string) => { written.push(chunk); }),
-    setHeader: vi.fn((k: string, v: string) => { headers[k] = v; }),
+    setHeader: vi.fn(),
     on: vi.fn(),
-  } as unknown as Response;
-  return { res, written, headers };
+  };
+  return { res: fake as Response, fake, written };
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -68,13 +86,13 @@ describe('createGenerateHandler', () => {
 
     const handler = createGenerateHandler({ apiKey: 'sk_test', baseUrl: 'http://test' });
     const req = makeFakeReq({ prompt: 'build me a dashboard' });
-    const { res, written, headers } = makeFakeRes();
+    const { res, fake, written } = makeFakeRes();
 
     await handler(req, res);
 
-    expect(headers['Content-Type']).toBe('text/event-stream');
-    expect(headers['Cache-Control']).toBe('no-cache');
-    expect(headers['Connection']).toBe('keep-alive');
+    expect(fake.setHeader).toHaveBeenCalledWith('Content-Type', 'text/event-stream');
+    expect(fake.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-cache');
+    expect(fake.setHeader).toHaveBeenCalledWith('Connection', 'keep-alive');
 
     const parsedEvents = written.map((chunk) =>
       JSON.parse(chunk.replace(/^data: /, '').trim()) as AgentEvent,
@@ -85,38 +103,34 @@ describe('createGenerateHandler', () => {
     expect(completeEvent).toBeDefined();
     expect((completeEvent as Extract<AgentEvent, { type: 'complete' }>).schema).toEqual(FAKE_SCHEMA);
 
-    const resAny = res as unknown as { end: ReturnType<typeof vi.fn> };
-    expect(resAny.end).toHaveBeenCalledOnce();
+    expect(fake.end).toHaveBeenCalledOnce();
   });
 
   it('returns 400 when prompt is missing', async () => {
     const handler = createGenerateHandler({ apiKey: 'sk_test', baseUrl: 'http://test' });
     const req = makeFakeReq({});
-    const { res } = makeFakeRes();
+    const { res, fake } = makeFakeRes();
 
     await handler(req, res);
 
-    const resAny = res as unknown as {
-      status: ReturnType<typeof vi.fn>;
-      json: ReturnType<typeof vi.fn>;
-    };
-    expect(resAny.status).toHaveBeenCalledWith(400);
-    expect(resAny.json).toHaveBeenCalledWith(
+    expect(fake.status).toHaveBeenCalledWith(400);
+    expect(fake.json).toHaveBeenCalledWith(
       expect.objectContaining({ error: expect.any(String) }),
     );
   });
 
   it('emits error SSE event when client.generate throws', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
+    const errorFetch = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ code: 500, message: 'upstream error' }), {
         status: 500,
         headers: { 'content-type': 'application/json' },
       }),
-    ) as unknown as typeof fetch;
+    );
+    globalThis.fetch = errorFetch as typeof fetch;
 
     const handler = createGenerateHandler({ apiKey: 'sk_test', baseUrl: 'http://test' });
     const req = makeFakeReq({ prompt: 'build something' });
-    const { res, written } = makeFakeRes();
+    const { res, fake, written } = makeFakeRes();
 
     await handler(req, res);
 
@@ -125,8 +139,7 @@ describe('createGenerateHandler', () => {
     );
     expect(parsedEvents.some((e) => e.type === 'error')).toBe(true);
 
-    const resAny = res as unknown as { end: ReturnType<typeof vi.fn> };
-    expect(resAny.end).toHaveBeenCalledOnce();
+    expect(fake.end).toHaveBeenCalledOnce();
   });
 });
 
@@ -136,30 +149,29 @@ describe('createEditHandler', () => {
   it('returns 400 when appId is missing', async () => {
     const handler = createEditHandler({ apiKey: 'sk_test', baseUrl: 'http://test' });
     const req = makeFakeReq({ patch: { orbital: 'X' } });
-    const { res } = makeFakeRes();
+    const { res, fake } = makeFakeRes();
 
     await handler(req, res);
 
-    const resAny = res as unknown as { status: ReturnType<typeof vi.fn> };
-    expect(resAny.status).toHaveBeenCalledWith(400);
+    expect(fake.status).toHaveBeenCalledWith(400);
   });
 
   it('returns schema JSON on success', async () => {
     const editedSchema: OrbitalSchema = { name: 'edited', orbitals: [] };
-    globalThis.fetch = vi.fn().mockResolvedValue(
+    const successFetch = vi.fn().mockResolvedValue(
       new Response(JSON.stringify(editedSchema), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       }),
-    ) as unknown as typeof fetch;
+    );
+    globalThis.fetch = successFetch as typeof fetch;
 
     const handler = createEditHandler({ apiKey: 'sk_test', baseUrl: 'http://test' });
     const req = makeFakeReq({ appId: 'app-1', patch: { orbital: 'X' } });
-    const { res } = makeFakeRes();
+    const { res, fake } = makeFakeRes();
 
     await handler(req, res);
 
-    const resAny = res as unknown as { json: ReturnType<typeof vi.fn> };
-    expect(resAny.json).toHaveBeenCalledWith(editedSchema);
+    expect(fake.json).toHaveBeenCalledWith(editedSchema);
   });
 });
