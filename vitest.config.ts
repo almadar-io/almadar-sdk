@@ -16,7 +16,7 @@ const runtimeRoot = findBuilderModule('@almadar/runtime');
 const testingLibraryReactRoot = findBuilderModule('@testing-library/react');
 const testingLibraryDomRoot = findBuilderModule('@testing-library/dom');
 
-const alias: { find: string | RegExp; replacement: string }[] = [];
+const alias: { find: string | RegExp; replacement: string | ((id: string) => string) }[] = [];
 if (reactRoot) {
   alias.push({ find: 'react/jsx-dev-runtime', replacement: path.join(reactRoot, 'jsx-dev-runtime.js') });
   alias.push({ find: 'react/jsx-runtime', replacement: path.join(reactRoot, 'jsx-runtime.js') });
@@ -24,10 +24,13 @@ if (reactRoot) {
   alias.push({ find: /^react-dom(\/.*)?$/, replacement: path.join(path.dirname(reactRoot), 'react-dom') });
 }
 if (uiRoot) {
-  alias.push({ find: /^@almadar\/ui(\/.*)?$/, replacement: uiRoot });
+  alias.push({ find: '@almadar/ui/runtime', replacement: path.join(uiRoot, 'dist/runtime/index.js') });
+  alias.push({ find: '@almadar/ui/components', replacement: path.join(uiRoot, 'dist/components/index.js') });
+  alias.push({ find: '@almadar/ui/hooks', replacement: path.join(uiRoot, 'dist/hooks/index.js') });
+  alias.push({ find: '@almadar/ui/index.css', replacement: path.join(uiRoot, 'index.css') });
 }
 if (runtimeRoot) {
-  alias.push({ find: /^@almadar\/runtime(\/.*)?$/, replacement: runtimeRoot });
+  alias.push({ find: '@almadar/runtime', replacement: runtimeRoot });
 }
 if (testingLibraryReactRoot) {
   alias.push({ find: /^@testing-library\/react(\/.*)?$/, replacement: testingLibraryReactRoot });
