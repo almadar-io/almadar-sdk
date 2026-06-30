@@ -7,9 +7,8 @@
  * the customer's server.
  */
 
-import type { OrbitalSchema } from '@almadar/core';
+import { parseOrbitalSchema, type OrbitalSchema, type SSEEvent } from '@almadar/core';
 import type {
-  AgentEvent,
   AlmadarClientOptions,
   ApiErrorBody,
   AsyncJobHandle,
@@ -27,7 +26,7 @@ const POLL_BACKOFF_MS: readonly number[] = [1000, 2000, 5000, 10_000, 30_000];
 
 interface JobStatus {
   state: 'pending' | 'complete' | 'error';
-  events?: readonly AgentEvent[];
+  events?: readonly SSEEvent[];
   result?: GenerateResult;
   errorCode?: number;
   errorMessage?: string;
@@ -57,6 +56,10 @@ export class AlmadarClient {
         endUserId: input.endUserId,
         appId: input.appId,
         async: true,
+        provider: input.provider,
+        model: input.model,
+        catalogMode: input.catalogMode,
+        stdAllowList: input.stdAllowList,
       });
       assertString(handle.jobId, 'AsyncJobHandle.jobId');
       assertString(handle.statusUrl, 'AsyncJobHandle.statusUrl');
@@ -94,6 +97,10 @@ export class AlmadarClient {
         prompt: input.prompt,
         endUserId: input.endUserId,
         appId: input.appId,
+        provider: input.provider,
+        model: input.model,
+        catalogMode: input.catalogMode,
+        stdAllowList: input.stdAllowList,
       }),
     });
     if (!res.ok) throw await this.errorFromResponse(res);
@@ -101,13 +108,17 @@ export class AlmadarClient {
 
     let final: GenerateResult | null = null;
     for await (const raw of parseSSE(res.body)) {
-      const event = parseAgentEvent(raw.event, raw.data);
+      const event = parseSseEvent(raw.data);
       if (event === null) continue;
       input.onEvent?.(event);
       if (event.type === 'complete') {
-        final = { schema: event.schema, appId: event.appId };
+        if (event.data.schema === undefined) {
+          throw new ServerError({ code: 500, message: '`complete` event did not contain a schema' });
+        }
+        const schema = parseOrbitalSchema(event.data.schema);
+        final = { schema, appId: event.data.appId };
       } else if (event.type === 'error') {
-        throw errorFromBody({ code: event.code ?? 500, message: event.message });
+        throw errorFromBody({ code: 500, message: event.data.error });
       }
     }
     if (final === null) {
@@ -203,21 +214,23 @@ export class AlmadarClient {
   }
 }
 
-function parseAgentEvent(eventName: string, dataLine: string): AgentEvent | null {
+/**
+ * Parse one SSE `data:` line into the canonical `SSEEvent` union.
+ * The server is the trusted emitter, so we validate only the envelope
+ * (object with string `type` and numeric `timestamp`) and cast to the
+ * discriminated union. Malformed lines are ignored.
+ */
+function parseSseEvent(dataLine: string): SSEEvent | null {
   if (dataLine === '') return null;
-  let payload: AgentEvent | null;
+  let payload;
   try {
     payload = JSON.parse(dataLine);
   } catch {
     return null;
   }
-  if (payload === null || typeof payload !== 'object') return null;
-  if (typeof payload.type === 'string') return payload;
-  if (eventName === '') return null;
-  // Server sent only an `event:` field name — write `type` onto the payload.
-  // Mutating the parsed result is safe because we own it.
-  const synthesized: AgentEvent & { type: string } = Object.assign(payload, { type: eventName });
-  return synthesized;
+  if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return null;
+  if (typeof payload.type !== 'string' || typeof payload.timestamp !== 'number') return null;
+  return payload as SSEEvent;
 }
 
 function assertString(v: string | undefined, name: string): asserts v is string {

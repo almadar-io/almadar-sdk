@@ -15,9 +15,8 @@
  * boundary. CSS is imported as a side-effect at module load.
  */
 
-import { lazy, forwardRef, Suspense, useImperativeHandle, useRef } from 'react';
-import type { EventPayload } from '@almadar/core';
-import type { AlmadarAppProps, AlmadarAppRef } from '../types';
+import { lazy, Suspense } from 'react';
+import type { AlmadarAppProps } from '../types';
 // Required global styles. Customers who self-manage Tailwind can import from
 // the (forthcoming) `@almadar/sdk/react/no-css` entry instead.
 import '@almadar/ui/index.css';
@@ -32,19 +31,7 @@ const BrowserPlaygroundLazy = lazy(async () => {
   return { default: mod.BrowserPlayground };
 });
 
-export const AlmadarApp = forwardRef<AlmadarAppRef, AlmadarAppProps>(function AlmadarApp(
-  props,
-  ref,
-) {
-  const emitterRef = useRef<((event: string, payload?: EventPayload) => void) | null>(null);
-
-  useImperativeHandle(ref, () => ({
-    emit(event, payload) {
-      if (emitterRef.current === null) return;
-      emitterRef.current(event, payload);
-    },
-  }));
-
+export function AlmadarApp(props: AlmadarAppProps) {
   const mode = props.mode ?? 'static';
 
   return (
@@ -69,6 +56,6 @@ export const AlmadarApp = forwardRef<AlmadarAppRef, AlmadarAppProps>(function Al
       )}
     </Suspense>
   );
-});
+}
 
 AlmadarApp.displayName = 'AlmadarApp';

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { OrbitalSchema } from '@almadar/core';
-import type { AgentEvent, GenerateRequest, EditSchemaRequest } from '../types';
+import type { SSEEvent, GenerateRequest, EditSchemaRequest } from '../types';
 import type { Request, Response } from 'express';
 
 // ─── Typed test-harness interfaces ───────────────────────────────────────────
@@ -23,9 +23,19 @@ interface FakeResponse extends Partial<Response> {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const FAKE_SCHEMA: OrbitalSchema = { name: 'test-app', orbitals: [] };
+const FAKE_SCHEMA: OrbitalSchema = {
+  name: 'test-app',
+  orbitals: [
+    {
+      name: 'DashboardOrbital',
+      entity: { name: 'Dashboard', fields: [{ name: 'id', type: 'string' }] },
+      traits: [],
+      pages: [{ name: 'HomePage', path: '/' }],
+    },
+  ],
+};
 
-function makeSseStream(events: AgentEvent[]): ReadableStream<Uint8Array> {
+function makeSseStream(events: SSEEvent[]): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   return new ReadableStream<Uint8Array>({
     start(controller) {
@@ -37,7 +47,7 @@ function makeSseStream(events: AgentEvent[]): ReadableStream<Uint8Array> {
   });
 }
 
-function makeFakeFetch(events: AgentEvent[]): typeof fetch {
+function makeFakeFetch(events: SSEEvent[]): typeof fetch {
   const mockFn = vi.fn().mockResolvedValue(
     new Response(makeSseStream(events), {
       status: 200,
@@ -77,9 +87,25 @@ describe('createGenerateHandler', () => {
   beforeEach(() => { vi.clearAllMocks(); });
 
   it('sets SSE headers, streams events, and calls res.end', async () => {
-    const events: AgentEvent[] = [
-      { type: 'start', threadId: 't1', workDir: '/tmp' },
-      { type: 'complete', schema: FAKE_SCHEMA },
+    const events: SSEEvent[] = [
+      {
+        type: 'start',
+        timestamp: 1,
+        data: { threadId: 't1', skill: 'rabit', workDir: '/tmp' },
+      },
+      {
+        type: 'complete',
+        timestamp: 2,
+        data: {
+          threadId: 't1',
+          skill: 'rabit',
+          workDir: '/tmp',
+          schemaGenerated: true,
+          appCompiled: false,
+          schema: FAKE_SCHEMA,
+          appId: 'app-1',
+        },
+      },
     ];
     const fakeFetch = makeFakeFetch(events);
     globalThis.fetch = fakeFetch;
@@ -95,13 +121,15 @@ describe('createGenerateHandler', () => {
     expect(fake.setHeader).toHaveBeenCalledWith('Connection', 'keep-alive');
 
     const parsedEvents = written.map((chunk) =>
-      JSON.parse(chunk.replace(/^data: /, '').trim()) as AgentEvent,
+      JSON.parse(chunk.replace(/^data: /, '').trim()) as SSEEvent,
     );
     expect(parsedEvents.map((e) => e.type)).toContain('complete');
 
     const completeEvent = parsedEvents.find((e) => e.type === 'complete');
     expect(completeEvent).toBeDefined();
-    expect((completeEvent as Extract<AgentEvent, { type: 'complete' }>).schema).toEqual(FAKE_SCHEMA);
+    expect((completeEvent as Extract<SSEEvent, { type: 'complete' }>).data).toEqual(
+      expect.objectContaining({ schema: FAKE_SCHEMA, appId: 'app-1' }),
+    );
 
     expect(fake.end).toHaveBeenCalledOnce();
   });
@@ -135,7 +163,7 @@ describe('createGenerateHandler', () => {
     await handler(req, res);
 
     const parsedEvents = written.map((chunk) =>
-      JSON.parse(chunk.replace(/^data: /, '').trim()) as AgentEvent,
+      JSON.parse(chunk.replace(/^data: /, '').trim()) as SSEEvent,
     );
     expect(parsedEvents.some((e) => e.type === 'error')).toBe(true);
 

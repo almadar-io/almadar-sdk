@@ -1,11 +1,12 @@
 /**
  * Public SDK types. Canonical schema / payload types come from `@almadar/core`;
- * the SDK adds the typed event union and HTTP-layer option shapes.
+ * the SDK adds the HTTP-layer option shapes and re-exports the canonical SSE
+ * event union.
  */
 
-import type { EntityData, EventPayload, OrbitalSchema } from '@almadar/core';
+import type { EntityData, EventPayload, OrbitalSchema, SSEEvent } from '@almadar/core';
 
-export type { EntityData, EventPayload, OrbitalSchema };
+export type { EntityData, EventPayload, OrbitalSchema, SSEEvent };
 
 /**
  * Typed request envelope for `createGenerateHandler`.
@@ -27,40 +28,6 @@ export interface EditSchemaRequest {
   appId?: string;
   patch?: EditSchemaPatch;
 }
-
-/**
- * Canonical JSON value type — the closure of every value that survives a
- * `JSON.parse(JSON.stringify(x))` round-trip. Used as the JSON-parse output
- * type so we never widen to `unknown` at HTTP boundaries.
- *
- * Mirrors `packages/almadar-agent/src/api-types.ts:25-31`.
- */
-export type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JsonValue[]
-  | { [key: string]: JsonValue };
-
-/**
- * Lifecycle events emitted by the agent during a `generate()` call. Mirrors
- * the SSE event types from
- * `apps/builder/packages/server/src/routes/agent/deepagent.ts` — keep in sync
- * when new events are added on the server.
- */
-export type AgentEvent =
-  | { type: 'start'; threadId: string; workDir: string }
-  | { type: 'plan_committed'; orbitals: readonly string[] }
-  | { type: 'orbital_added'; orbital: string }
-  | { type: 'schema_update'; schema: OrbitalSchema }
-  | { type: 'app_created'; appId: string; name: string }
-  | { type: 'subagent_start'; subagent: string }
-  | { type: 'subagent_progress'; subagent: string; message: string }
-  | { type: 'subagent_complete'; subagent: string }
-  | { type: 'coordinator_decision'; decision: string }
-  | { type: 'complete'; schema: OrbitalSchema; appId?: string }
-  | { type: 'error'; message: string; code?: number };
 
 /**
  * Server-emitted error envelope. `code` maps to the SDK error subclasses:
@@ -85,13 +52,33 @@ export interface GenerateOptions {
   prompt: string;
   endUserId?: string;
   appId?: string;
-  /** Streaming callback for SSE events. */
-  onEvent?: (event: AgentEvent) => void;
+  /** Streaming callback for canonical SSE events. */
+  onEvent?: (event: SSEEvent) => void;
   /**
    * When true, server responds with an `AsyncJobHandle` immediately and the
    * client polls. Useful for generations expected to exceed proxy SSE timeouts.
    */
   async?: boolean;
+  /**
+   * Agent provider override (e.g. 'deepseek', 'openai').
+   * Omit to use the server's default.
+   */
+  provider?: string;
+  /**
+   * Agent model override (e.g. 'deepseek-chat').
+   * Omit to use the server's default.
+   */
+  model?: string;
+  /**
+   * Behavior catalog mode — 'subset' narrows generation to stdAllowList.
+   * Server-specific; omit if the agent does not support it.
+   */
+  catalogMode?: string;
+  /**
+   * Allow-list of std behavior names. Requires a server that supports catalog
+   * narrowing (e.g. the builder Rabit/Studio agent).
+   */
+  stdAllowList?: string[];
 }
 
 export interface GenerateResult {
@@ -146,9 +133,4 @@ export interface AlmadarAppProps {
   initialPagePath?: string;
   height?: string;
   className?: string;
-  theme?: 'copper' | 'wireframe' | 'default';
-}
-
-export interface AlmadarAppRef {
-  emit(eventName: string, payload?: EventPayload): void;
 }

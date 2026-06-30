@@ -22,9 +22,7 @@ export {
   ServerError,
 } from './client/errors';
 export type {
-  AgentEvent,
   AlmadarAppProps,
-  AlmadarAppRef,
   AlmadarClientOptions,
   ApiErrorBody,
   AsyncJobHandle,
@@ -35,6 +33,6 @@ export type {
   EventPayload,
   GenerateOptions,
   GenerateResult,
-  JsonValue,
   OrbitalSchema,
+  SSEEvent,
 } from './types';

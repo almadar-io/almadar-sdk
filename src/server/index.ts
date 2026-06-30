@@ -1,16 +1,18 @@
 /**
- * `@almadar/sdk/server` — Express handler factories for the Almadar agent.
- *
- * Node-only. Never import this from browser or React code.
+ * `@almadar/sdk/server` — Framework-agnostic Web-standard Fetch handlers for
+ * the Almadar agent proxy. Node-only; never import from browser or React code.
  *
  * Usage:
  *   import { createGenerateHandler, createEditHandler } from '@almadar/sdk/server';
+ *   const handler = createGenerateHandler({ apiKey: process.env.ALMADAR_API_KEY! });
+ *   // handler: (request: Request) => Promise<Response>
+ *
+ * For framework adapters see `@almadar/sdk/server/express` and `@almadar/sdk/server/hono`.
  */
 
-import type { Request, Response } from 'express';
 import type { OrbitalSchema } from '@almadar/core';
 import { AlmadarClient } from '../client/AlmadarClient';
-import type { AgentEvent, EditSchemaRequest, EditSchemaPatch, GenerateRequest } from '../types';
+import type { EditSchemaRequest, EditSchemaPatch, GenerateRequest, SSEEvent } from '../types';
 
 // ============================================================================
 // Public option surface
@@ -21,7 +23,10 @@ export interface GenerateHandlerOptions {
   apiKey: string;
   /** Defaults to https://studio.almadar.io. */
   baseUrl?: string;
-  /** Derive a stable end-user id from the request. */
+  /**
+   * Derive a stable end-user id from the incoming Web Request.
+   * Falls back to the `x-user-id` request header when omitted.
+   */
   endUserId?: (req: Request) => string;
 }
 
@@ -31,12 +36,12 @@ export interface GenerateHandlerOptions {
 
 function resolveEndUserId(opts: GenerateHandlerOptions, req: Request): string | undefined {
   if (opts.endUserId) return opts.endUserId(req);
-  const header = req.headers['x-user-id'];
+  const header = req.headers.get('x-user-id');
   return typeof header === 'string' && header.length > 0 ? header : undefined;
 }
 
-function writeSseEvent(res: Response, event: AgentEvent): void {
-  res.write(`data: ${JSON.stringify(event)}\n\n`);
+function encodeSseEvent(event: SSEEvent): string {
+  return `data: ${JSON.stringify(event)}\n\n`;
 }
 
 // ============================================================================
@@ -44,49 +49,74 @@ function writeSseEvent(res: Response, event: AgentEvent): void {
 // ============================================================================
 
 /**
- * Returns an Express route handler that streams a generate call as SSE.
+ * Returns a Web-standard Fetch handler that streams a generate call as SSE.
  *
  * Body shape accepted: `{ prompt: string; endUserId?: string; appId?: string }`
  */
 export function createGenerateHandler(
   opts: GenerateHandlerOptions,
-): (req: Request, res: Response) => Promise<void> {
-  return async (req: Request, res: Response): Promise<void> => {
-    const body = req.body as GenerateRequest;
+): (request: Request) => Promise<Response> {
+  return async (request: Request): Promise<Response> => {
+    let body: GenerateRequest;
+    try {
+      body = (await request.json()) as GenerateRequest;
+    } catch {
+      return new Response(JSON.stringify({ error: 'invalid JSON body' }), {
+        status: 400,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+
     const rawPrompt = body.prompt ?? body.message;
     const prompt = typeof rawPrompt === 'string' ? rawPrompt : '';
 
     if (!prompt) {
-      res.status(400).json({ error: 'prompt or message is required' });
-      return;
+      return new Response(JSON.stringify({ error: 'prompt or message is required' }), {
+        status: 400,
+        headers: { 'content-type': 'application/json' },
+      });
     }
 
     const bodyEndUserId = typeof body.endUserId === 'string' ? body.endUserId : undefined;
-    const endUserId = bodyEndUserId ?? resolveEndUserId(opts, req);
+    const endUserId = bodyEndUserId ?? resolveEndUserId(opts, request);
     const appId = typeof body.appId === 'string' ? body.appId : undefined;
-
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
 
     const client = new AlmadarClient({ apiKey: opts.apiKey, baseUrl: opts.baseUrl });
 
-    try {
-      await client.generate({
-        prompt,
-        endUserId,
-        appId,
-        onEvent: (event: AgentEvent) => {
-          writeSseEvent(res, event);
-        },
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      const errorEvent: AgentEvent = { type: 'error', message };
-      writeSseEvent(res, errorEvent);
-    } finally {
-      res.end();
-    }
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        try {
+          await client.generate({
+            prompt,
+            endUserId,
+            appId,
+            onEvent: (event: SSEEvent) => {
+              controller.enqueue(encoder.encode(encodeSseEvent(event)));
+            },
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          const errorEvent: SSEEvent = {
+            type: 'error',
+            timestamp: Date.now(),
+            data: { error: message },
+          };
+          controller.enqueue(encoder.encode(encodeSseEvent(errorEvent)));
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      status: 200,
+      headers: {
+        'content-type': 'text/event-stream',
+        'cache-control': 'no-cache',
+        connection: 'keep-alive',
+      },
+    });
   };
 }
 
@@ -95,36 +125,54 @@ export function createGenerateHandler(
 // ============================================================================
 
 /**
- * Returns an Express route handler that calls `editSchema` and returns JSON.
+ * Returns a Web-standard Fetch handler that calls `editSchema` and returns JSON.
  *
  * Body shape accepted: `{ appId: string; patch: EditSchemaPatch }`
  */
 export function createEditHandler(
   opts: GenerateHandlerOptions,
-): (req: Request, res: Response) => Promise<void> {
-  return async (req: Request, res: Response): Promise<void> => {
-    const body = req.body as EditSchemaRequest;
-    const appId = typeof body.appId === 'string' ? body.appId : '';
+): (request: Request) => Promise<Response> {
+  return async (request: Request): Promise<Response> => {
+    let body: EditSchemaRequest;
+    try {
+      body = (await request.json()) as EditSchemaRequest;
+    } catch {
+      return new Response(JSON.stringify({ error: 'invalid JSON body' }), {
+        status: 400,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
 
+    const appId = typeof body.appId === 'string' ? body.appId : '';
     if (!appId) {
-      res.status(400).json({ error: 'appId is required' });
-      return;
+      return new Response(JSON.stringify({ error: 'appId is required' }), {
+        status: 400,
+        headers: { 'content-type': 'application/json' },
+      });
     }
 
     const patch: EditSchemaPatch | undefined = body.patch;
     if (patch === undefined || patch === null || typeof patch !== 'object') {
-      res.status(400).json({ error: 'patch is required' });
-      return;
+      return new Response(JSON.stringify({ error: 'patch is required' }), {
+        status: 400,
+        headers: { 'content-type': 'application/json' },
+      });
     }
 
     const client = new AlmadarClient({ apiKey: opts.apiKey, baseUrl: opts.baseUrl });
 
     try {
       const schema: OrbitalSchema = await client.editSchema(appId, patch);
-      res.json(schema);
+      return new Response(JSON.stringify(schema), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      res.status(500).json({ error: message });
+      return new Response(JSON.stringify({ error: message }), {
+        status: 500,
+        headers: { 'content-type': 'application/json' },
+      });
     }
   };
 }

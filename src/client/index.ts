@@ -7,7 +7,6 @@ export {
   ServerError,
 } from './errors';
 export type {
-  AgentEvent,
   AlmadarClientOptions,
   ApiErrorBody,
   AsyncJobHandle,
@@ -19,5 +18,5 @@ export type {
   OrbitalSchema,
   EntityData,
   EventPayload,
-  JsonValue,
+  SSEEvent,
 } from '../types';

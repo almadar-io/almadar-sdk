@@ -6,6 +6,8 @@ export default defineConfig({
     'src/client/index.ts',
     'src/react/index.ts',
     'src/server/index.ts',
+    'src/server/express.ts',
+    'src/server/hono.ts',
   ],
   format: ['esm'],
   dts: true,
@@ -20,5 +22,6 @@ export default defineConfig({
     '@almadar/runtime',
     '@almadar/ui',
     'express',
+    'hono',
   ],
 });
