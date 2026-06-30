@@ -58,9 +58,14 @@ function makeFakeFetch(events: SSEEvent[]): typeof fetch {
 }
 
 function makeFakeReq(body: GenerateRequest | EditSchemaRequest): Request {
+  const headers: Record<string, string> = {};
   const req: FakeRequest = {
     body,
-    headers: {},
+    headers,
+    protocol: 'http',
+    originalUrl: '/api/agent/generate',
+    method: 'POST',
+    get: vi.fn((name: string) => (name.toLowerCase() === 'host' ? 'test' : undefined)),
     on: vi.fn(),
   };
   return req as Request;
@@ -72,7 +77,9 @@ function makeFakeRes(): { res: Response; fake: FakeResponse; written: string[] }
     status: vi.fn().mockReturnThis(),
     json: vi.fn().mockReturnThis(),
     end: vi.fn(),
-    write: vi.fn((chunk: string) => { written.push(chunk); }),
+    write: vi.fn((chunk: string | Uint8Array) => {
+      written.push(typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk));
+    }),
     setHeader: vi.fn(),
     on: vi.fn(),
   };
@@ -81,7 +88,7 @@ function makeFakeRes(): { res: Response; fake: FakeResponse; written: string[] }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
-import { createGenerateHandler, createEditHandler } from '../server/index.js';
+import { createGenerateHandler, createEditHandler } from '../server/express.js';
 
 describe('createGenerateHandler', () => {
   beforeEach(() => { vi.clearAllMocks(); });
@@ -116,9 +123,9 @@ describe('createGenerateHandler', () => {
 
     await handler(req, res);
 
-    expect(fake.setHeader).toHaveBeenCalledWith('Content-Type', 'text/event-stream');
-    expect(fake.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-cache');
-    expect(fake.setHeader).toHaveBeenCalledWith('Connection', 'keep-alive');
+    expect(fake.setHeader).toHaveBeenCalledWith('content-type', 'text/event-stream');
+    expect(fake.setHeader).toHaveBeenCalledWith('cache-control', 'no-cache');
+    expect(fake.setHeader).toHaveBeenCalledWith('connection', 'keep-alive');
 
     const parsedEvents = written.map((chunk) =>
       JSON.parse(chunk.replace(/^data: /, '').trim()) as SSEEvent,
@@ -137,14 +144,13 @@ describe('createGenerateHandler', () => {
   it('returns 400 when prompt is missing', async () => {
     const handler = createGenerateHandler({ apiKey: 'sk_test', baseUrl: 'http://test' });
     const req = makeFakeReq({});
-    const { res, fake } = makeFakeRes();
+    const { res, fake, written } = makeFakeRes();
 
     await handler(req, res);
 
     expect(fake.status).toHaveBeenCalledWith(400);
-    expect(fake.json).toHaveBeenCalledWith(
-      expect.objectContaining({ error: expect.any(String) }),
-    );
+    const body = written.length > 0 ? JSON.parse(written[0]) : {};
+    expect(body).toEqual(expect.objectContaining({ error: expect.any(String) }));
   });
 
   it('emits error SSE event when client.generate throws', async () => {
@@ -196,10 +202,12 @@ describe('createEditHandler', () => {
 
     const handler = createEditHandler({ apiKey: 'sk_test', baseUrl: 'http://test' });
     const req = makeFakeReq({ appId: 'app-1', patch: { orbital: 'X' } });
-    const { res, fake } = makeFakeRes();
+    const { res, fake, written } = makeFakeRes();
 
     await handler(req, res);
 
-    expect(fake.json).toHaveBeenCalledWith(editedSchema);
+    expect(fake.status).toHaveBeenCalledWith(200);
+    const body = written.length > 0 ? JSON.parse(written[0]) : {};
+    expect(body).toEqual(editedSchema);
   });
 });

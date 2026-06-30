@@ -133,4 +133,23 @@ export interface AlmadarAppProps {
   initialPagePath?: string;
   height?: string;
   className?: string;
+  /**
+   * Tiers of config knobs to surface as auto-derived controls. When provided,
+   * a control rail is rendered next to the app. Omit to hide controls.
+   * Common values: `['presentation']`, `['presentation', 'domain']`.
+   */
+  exposedTiers?: string[];
+  /** Where to render the auto-derived controls rail. Default: 'right'. */
+  controlsPosition?: 'right' | 'bottom';
+}
+
+/**
+ * Props for `<OrbitalConfigPanel />` — low-level control rail used by
+ * `<AlmadarApp />` when `exposedTiers` is set.
+ */
+export interface OrbitalConfigPanelProps {
+  schema: string | OrbitalSchema;
+  exposedTiers?: string[];
+  position?: 'right' | 'bottom';
+  onSchemaChange?: (schema: OrbitalSchema) => void;
 }
