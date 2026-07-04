@@ -1,6 +1,6 @@
 {
   "name": "@almadar/sdk",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Almadar SDK — embed agent-generated orbital schemas in your React app. AlmadarApp component + AlmadarClient HTTP client.",
   "type": "module",
   "main": "./dist/index.js",
@@ -70,7 +70,8 @@
     "react-dom": "^18.3.1",
     "tsup": "^8.3.5",
     "typescript": "^5.7.0",
-    "vitest": "^2.1.0"
+    "vitest": "^2.1.0",
+    "turbo": "^2.8.17"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
@@ -80,5 +81,6 @@
     "type": "git",
     "url": "https://github.com/almadar-io/almadar-sdk.git"
   },
-  "license": "BSL-1.1"
+  "license": "BSL-1.1",
+  "packageManager": "pnpm@10.30.3"
 }
