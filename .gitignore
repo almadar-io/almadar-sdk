@@ -21,3 +21,4 @@ coverage/
 
 # Pack artifacts
 *.tgz
+.turbo/
