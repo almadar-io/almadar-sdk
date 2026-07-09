@@ -9,17 +9,17 @@ importers:
   .:
     dependencies:
       '@almadar/core':
-        specifier: ^10.11.0
-        version: 10.27.0
+        specifier: ^10.28.0
+        version: 10.28.0
       '@almadar/runtime':
-        specifier: ^6.17.0
+        specifier: ^6.31.0
         version: 6.31.0(express@4.22.2)
       '@almadar/ui':
-        specifier: ^5.79.0
-        version: 5.111.0(@tanstack/react-query@5.101.2(react@18.3.1))(@types/react@18.3.31)(express@4.22.2)(react-dom@18.3.1(react@18.3.1))(react-router-dom@7.18.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)
+        specifier: ^5.112.0
+        version: 5.112.0(@tanstack/react-query@5.101.2(react@18.3.1))(@types/react@18.3.31)(express@4.22.2)(react-dom@18.3.1(react@18.3.1))(react-router-dom@7.18.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)
     devDependencies:
       '@almadar/eslint-plugin':
-        specifier: '>=2.7.0'
+        specifier: ^2.14.0
         version: 2.14.0(eslint@10.0.0)
       '@testing-library/dom':
         specifier: ^10.4.0
@@ -72,8 +72,8 @@ importers:
 
 packages:
 
-  '@almadar/core@10.27.0':
-    resolution: {integrity: sha512-rsZD9IWnwYALQjUoi0S0bA0NpjNz9bWnx2pMMPLSKGBf4I3wVd/4M6brPDsQcsQ59QTu0jmDYory210ZbBMyiQ==}
+  '@almadar/core@10.28.0':
+    resolution: {integrity: sha512-uCXQGCzGoxe0bvO5xZOdz7tfW/3pjiKotxp5zeZ+TFRywVbjKaoHaQ77jnSsECHCqTIu58iMUKLJRc4I8RH9cQ==}
 
   '@almadar/eslint-plugin@2.14.0':
     resolution: {integrity: sha512-kBZ20xYQoLVHLqX5ZsfFgYUPDL1DRWwlKI00k4pvZy4a5fx4y2+47wa6O6Vq2sAZxjKCy7EDBoARIrKt9JOMkA==}
@@ -85,9 +85,6 @@ packages:
 
   '@almadar/logger@1.9.0':
     resolution: {integrity: sha512-863+UD4n3cP4tXReJFk6VpAc0mHzQxR6ehAroLKfy3ns09Yjs1v6y2oROiBMo0M18AmkwtitErNT+wqA5bj4sA==}
-
-  '@almadar/patterns@2.101.0':
-    resolution: {integrity: sha512-bT0fui3pkxlNkK/E+JLT6xGt3XFYt80Swkzsp6afHRiU06TCXwHA4yX5ePY+AG+LSlVEpOwVQl5VJCQQPch8jg==}
 
   '@almadar/runtime@6.31.0':
     resolution: {integrity: sha512-mUg7qrA8qMp7w067BDyxlL7FGoBIIHH7tH2+SgXeAKyRY96nD13AQyXWs0UrQHpsczcbhQ9ogFYTKVynVKX8cQ==}
@@ -109,11 +106,14 @@ packages:
   '@almadar/std@16.137.0':
     resolution: {integrity: sha512-RhkaEOpuAZFOCLfOXy6ksdPfLGud5t9+XPtAIscvFA96UV6NCNXlpTwO2cW/sdWVFqRaE2Ek1aVmgk0EOJtf0A==}
 
+  '@almadar/std@16.138.0':
+    resolution: {integrity: sha512-ruPLqMUY6kpDVzHKKWuTaEltfe2MOJ6NAAVYj9DZo0Lz8GpqhOzYidps8OzOruQXVYMQCvY3xTTv95Y8peYBlQ==}
+
   '@almadar/syntax@1.11.0':
     resolution: {integrity: sha512-r+ALQNzClsKnLrYko1n+l3eOfdDTV9zMe40aLEQEDWUvfgY/GiFtSouXqCmif6+WCL/+21KJ4du4Ya3fPhl9mQ==}
 
-  '@almadar/ui@5.111.0':
-    resolution: {integrity: sha512-hkUp5J4O36F39mz1DgASE3/GUxyT9YQ/u2eDgaPHAbU2nw9W0X+kvlHyC3OFch0a0lOzfrZ453PiJMj5cyLoUA==}
+  '@almadar/ui@5.112.0':
+    resolution: {integrity: sha512-/ZYI9xFwfkq32vpP/1LflKDq+e3g79i3XkA3M8J1r5f7jm/XTGt7XOxrKd3OS8BNxFnwYfXPhguNocFhJtizsw==}
     peerDependencies:
       '@react-three/drei': ^10.7.7
       '@react-three/fiber': ^9.0.0
@@ -1896,10 +1896,10 @@ packages:
   lru-memoizer@2.3.0:
     resolution: {integrity: sha512-GXn7gyHAMhO13WSKrIiNfztwxodVsP8IoZ3XfrJV4yH2x0/OeTO/FIaAHTY5YekdGgW94njfuKmyyt1E0mR6Ug==}
 
-  lucide-react@0.344.0:
-    resolution: {integrity: sha512-6YyBnn91GB45VuVT96bYCOKElbJzUHqp65vX8cDcu55MQL9T969v4dhGClpljamuI/+KMO9P6w9Acq1CVQGvIQ==}
+  lucide-react@0.570.0:
+    resolution: {integrity: sha512-qGnQ8bEPJLMseKo7kI6jK6GW6Y2Yl4PpqoWbroNsobZ8+tZR4SUuO4EXK3oWCdZr48SZ7PnaulTkvzkKvG/Iqg==}
     peerDependencies:
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
@@ -2822,7 +2822,7 @@ packages:
 
 snapshots:
 
-  '@almadar/core@10.27.0':
+  '@almadar/core@10.28.0':
     dependencies:
       zod: 3.25.76
 
@@ -2833,20 +2833,16 @@ snapshots:
 
   '@almadar/evaluator@2.29.0':
     dependencies:
-      '@almadar/core': 10.27.0
+      '@almadar/core': 10.28.0
       '@almadar/std': 16.137.0
 
   '@almadar/logger@1.9.0':
     dependencies:
-      '@almadar/core': 10.27.0
-
-  '@almadar/patterns@2.101.0':
-    dependencies:
-      '@almadar/core': 10.27.0
+      '@almadar/core': 10.28.0
 
   '@almadar/runtime@6.31.0(express@4.22.2)':
     dependencies:
-      '@almadar/core': 10.27.0
+      '@almadar/core': 10.28.0
       '@almadar/evaluator': 2.29.0
       '@almadar/logger': 1.9.0
       '@almadar/server': 2.23.0(express@4.22.2)
@@ -2863,7 +2859,7 @@ snapshots:
 
   '@almadar/server@2.23.0(express@4.22.2)':
     dependencies:
-      '@almadar/core': 10.27.0
+      '@almadar/core': 10.28.0
       '@almadar/logger': 1.9.0
       '@faker-js/faker': 9.9.0
       cors: 2.8.6
@@ -2881,21 +2877,24 @@ snapshots:
 
   '@almadar/std@16.137.0':
     dependencies:
-      '@almadar/core': 10.27.0
+      '@almadar/core': 10.28.0
+
+  '@almadar/std@16.138.0':
+    dependencies:
+      '@almadar/core': 10.28.0
 
   '@almadar/syntax@1.11.0':
     dependencies:
-      '@almadar/core': 10.27.0
-      '@almadar/std': 16.137.0
+      '@almadar/core': 10.28.0
+      '@almadar/std': 16.138.0
 
-  '@almadar/ui@5.111.0(@tanstack/react-query@5.101.2(react@18.3.1))(@types/react@18.3.31)(express@4.22.2)(react-dom@18.3.1(react@18.3.1))(react-router-dom@7.18.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)':
+  '@almadar/ui@5.112.0(@tanstack/react-query@5.101.2(react@18.3.1))(@types/react@18.3.31)(express@4.22.2)(react-dom@18.3.1(react@18.3.1))(react-router-dom@7.18.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)':
     dependencies:
-      '@almadar/core': 10.27.0
+      '@almadar/core': 10.28.0
       '@almadar/evaluator': 2.29.0
       '@almadar/logger': 1.9.0
-      '@almadar/patterns': 2.101.0
       '@almadar/runtime': 6.31.0(express@4.22.2)
-      '@almadar/std': 16.137.0
+      '@almadar/std': 16.138.0
       '@almadar/syntax': 1.11.0
       '@dnd-kit/core': 6.3.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@dnd-kit/sortable': 10.0.0(@dnd-kit/core@6.3.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)
@@ -2908,7 +2907,7 @@ snapshots:
       elkjs: 0.11.1
       hastscript: 9.0.1
       leaflet: 1.9.4
-      lucide-react: 0.344.0(react@18.3.1)
+      lucide-react: 0.570.0(react@18.3.1)
       parse-entities: 4.0.2
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
@@ -4752,7 +4751,7 @@ snapshots:
       lodash.clonedeep: 4.5.0
       lru-cache: 6.0.0
 
-  lucide-react@0.344.0(react@18.3.1):
+  lucide-react@0.570.0(react@18.3.1):
     dependencies:
       react: 18.3.1
 
