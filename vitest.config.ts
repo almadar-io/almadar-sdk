@@ -24,10 +24,10 @@ if (reactRoot) {
   alias.push({ find: /^react-dom(\/.*)?$/, replacement: path.join(path.dirname(reactRoot), 'react-dom') });
 }
 if (uiRoot) {
-  alias.push({ find: '@almadar/ui/runtime', replacement: path.join(uiRoot, 'dist/runtime/index.js') });
-  alias.push({ find: '@almadar/ui/components', replacement: path.join(uiRoot, 'dist/components/index.js') });
-  alias.push({ find: '@almadar/ui/hooks', replacement: path.join(uiRoot, 'dist/hooks/index.js') });
-  alias.push({ find: '@almadar/ui/index.css', replacement: path.join(uiRoot, 'index.css') });
+  alias.push({ find: /^@almadar\/ui\/runtime$/, replacement: path.join(uiRoot, 'dist/runtime/index.js') });
+  alias.push({ find: /^@almadar\/ui\/components$/, replacement: path.join(uiRoot, 'dist/components/index.js') });
+  alias.push({ find: /^@almadar\/ui\/hooks$/, replacement: path.join(uiRoot, 'dist/hooks/index.js') });
+  alias.push({ find: /^@almadar\/ui\/index\.css$/, replacement: path.join(uiRoot, 'index.css') });
 }
 if (runtimeRoot) {
   alias.push({ find: '@almadar/runtime', replacement: runtimeRoot });
