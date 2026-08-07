@@ -50,8 +50,9 @@ export function AlmadarApp(props: AlmadarAppProps) {
     setControlledSchema(parsedSchema);
   }, [parsedSchema]);
 
-  const effectiveSchema = props.exposedTiers && mode !== 'server' ? controlledSchema : parsedSchema;
-  const showControls = props.exposedTiers && props.exposedTiers.length > 0 && mode !== 'server';
+  const showControls =
+    props.showControls ?? (props.exposedTiers !== undefined && props.exposedTiers.length > 0 && mode !== 'server');
+  const effectiveSchema = showControls ? controlledSchema : parsedSchema;
 
   const preview = mode === 'mock' ? (
     <BrowserPlaygroundLazy

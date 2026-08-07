@@ -48,11 +48,7 @@ const { schema } = await almadar.generate({
 
 `AlmadarClient.generate()` streams SSE events (`start`, `orbital_added`, `complete`, …) via `onEvent`. The returned `schema` is the final `OrbitalSchema` you pass to `<AlmadarApp />`.
 
-For long-running generations, pass `async: true` to flip to job-polling mode:
-
-```ts
-const { schema } = await almadar.generate({ prompt, async: true });
-```
+There is no job-polling mode — `generate({ async: true })` throws `AsyncUnsupportedError` before any network call. For long-running generations, consume the stream via `onEvent` instead.
 
 ## Issuing API keys
 

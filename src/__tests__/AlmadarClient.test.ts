@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { AlmadarClient } from '../client/AlmadarClient';
-import { ApiKeyError } from '../client/errors';
-import type { OrbitalSchema, SSEEvent } from '../types';
+import { ApiKeyError, AsyncUnsupportedError, GenerationFailedError, PinError } from '../client/errors';
+import { API_ERROR_CODES } from '../types';
+import type { GenerateMeta, GeneratePin, GenerateStreamEvent, OrbitalSchema } from '../types';
 
 const SAMPLE_SCHEMA: OrbitalSchema = {
   name: 'sample',
@@ -15,7 +16,15 @@ const SAMPLE_SCHEMA: OrbitalSchema = {
   ],
 };
 
-function sseResponse(events: readonly SSEEvent[]): Response {
+const SAMPLE_META: GenerateMeta = {
+  tier: 'hit',
+  organisms: [{ name: 'DashboardOrbital', source: 'factory' }],
+  demoted: [],
+  cacheVerdict: { verdict: 'hit', chosen: 'DashboardOrbital' },
+  durationMs: 1234,
+};
+
+function sseResponse(events: readonly GenerateStreamEvent[]): Response {
   const encoder = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -105,5 +114,108 @@ describe('AlmadarClient', () => {
     expect(schema.name).toBe('edited');
     const [, init] = fetchMock.mock.calls[0];
     expect((init as RequestInit).method).toBe('PUT');
+  });
+
+  it('throws AsyncUnsupportedError for async:true and makes no network call', async () => {
+    const fetchMock = vi.fn();
+    const client = new AlmadarClient({ apiKey: 'sk_test', baseUrl: 'http://test', fetch: fetchMock });
+    await expect(client.generate({ prompt: 'hi', async: true })).rejects.toBeInstanceOf(AsyncUnsupportedError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('serializes `pin` into the generate POST body', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      sseResponse([
+        {
+          type: 'complete',
+          timestamp: 1,
+          data: {
+            threadId: 't1',
+            skill: 'rabit',
+            workDir: '/tmp/x',
+            schemaGenerated: true,
+            appCompiled: false,
+            schema: SAMPLE_SCHEMA,
+            appId: 'app-1',
+          },
+        },
+      ]),
+    );
+    const client = new AlmadarClient({ apiKey: 'sk_test', baseUrl: 'http://test', fetch: fetchMock });
+    const pin: GeneratePin = { organism: 'DashboardOrbital', knobs: { theme: 'dark' } };
+    await client.generate({ prompt: 'hello', pin });
+    const [, init] = fetchMock.mock.calls[0];
+    const body: { pin?: GeneratePin } = JSON.parse((init as RequestInit).body as string);
+    expect(body.pin).toEqual(pin);
+  });
+
+  it('captures a generation_meta SSE event and attaches it to the result', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      sseResponse([
+        { type: 'generation_meta', timestamp: 1, data: SAMPLE_META },
+        {
+          type: 'complete',
+          timestamp: 2,
+          data: {
+            threadId: 't1',
+            skill: 'rabit',
+            workDir: '/tmp/x',
+            schemaGenerated: true,
+            appCompiled: false,
+            schema: SAMPLE_SCHEMA,
+            appId: 'app-1',
+          },
+        },
+      ]),
+    );
+    const client = new AlmadarClient({ apiKey: 'sk_test', baseUrl: 'http://test', fetch: fetchMock });
+    const seen: GenerateStreamEvent[] = [];
+    const result = await client.generate({ prompt: 'hello', onEvent: (e) => seen.push(e) });
+    expect(result.meta).toEqual(SAMPLE_META);
+    expect(seen.some((e) => e.type === 'generation_meta')).toBe(true);
+  });
+
+  it('leaves result.meta undefined when no generation_meta event is sent', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      sseResponse([
+        {
+          type: 'complete',
+          timestamp: 1,
+          data: {
+            threadId: 't1',
+            skill: 'rabit',
+            workDir: '/tmp/x',
+            schemaGenerated: true,
+            appCompiled: false,
+            schema: SAMPLE_SCHEMA,
+            appId: 'app-1',
+          },
+        },
+      ]),
+    );
+    const client = new AlmadarClient({ apiKey: 'sk_test', baseUrl: 'http://test', fetch: fetchMock });
+    const result = await client.generate({ prompt: 'hello' });
+    expect(result.meta).toBeUndefined();
+  });
+
+  it('throws GenerationFailedError for an SSE error event with code "failed"', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      sseResponse([{ type: 'error', timestamp: 1, data: { error: 'boom', code: 'failed' } }]),
+    );
+    const client = new AlmadarClient({ apiKey: 'sk_test', baseUrl: 'http://test', fetch: fetchMock });
+    const err: unknown = await client.generate({ prompt: 'hello' }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(GenerationFailedError);
+    expect(err instanceof GenerationFailedError && err.code).toBe(API_ERROR_CODES.GENERATION_FAILED);
+  });
+
+  it('throws PinError on an HTTP error body carrying a pin error code', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ code: 4041, message: 'Unknown organism' }), {
+        status: 400,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    const client = new AlmadarClient({ apiKey: 'sk_bad', baseUrl: 'http://test', fetch: fetchMock });
+    await expect(client.generate({ prompt: 'hi' })).rejects.toBeInstanceOf(PinError);
   });
 });

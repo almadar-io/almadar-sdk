@@ -8,29 +8,22 @@
  */
 
 import { parseOrbitalSchema, type OrbitalSchema, type SSEEvent } from '@almadar/core';
+import { API_ERROR_CODES, isGenerateMeta } from '../types';
 import type {
   AlmadarClientOptions,
   ApiErrorBody,
-  AsyncJobHandle,
   CompileOptions,
   CompileResult,
   EditSchemaPatch,
+  GenerateMeta,
   GenerateOptions,
   GenerateResult,
+  GenerateStreamEvent,
 } from '../types';
-import { errorFromBody, ServerError } from './errors';
+import { AsyncUnsupportedError, errorFromBody, ServerError, streamErrorFromEvent } from './errors';
 import { parseSSE } from './sseParser';
 
 const DEFAULT_BASE_URL = 'https://studio.almadar.io';
-const POLL_BACKOFF_MS: readonly number[] = [1000, 2000, 5000, 10_000, 30_000];
-
-interface JobStatus {
-  state: 'pending' | 'complete' | 'error';
-  events?: readonly SSEEvent[];
-  result?: GenerateResult;
-  errorCode?: number;
-  errorMessage?: string;
-}
 
 export class AlmadarClient {
   private readonly apiKey: string;
@@ -51,19 +44,10 @@ export class AlmadarClient {
 
   async generate(input: GenerateOptions): Promise<GenerateResult> {
     if (input.async === true) {
-      const handle = await this.requestJson<AsyncJobHandle>('POST', '/api/v1/agent/generate', {
-        prompt: input.prompt,
-        endUserId: input.endUserId,
-        appId: input.appId,
-        async: true,
-        provider: input.provider,
-        model: input.model,
-        catalogMode: input.catalogMode,
-        stdAllowList: input.stdAllowList,
+      throw new AsyncUnsupportedError({
+        code: API_ERROR_CODES.ASYNC_UNSUPPORTED,
+        message: 'AlmadarClient has no async job surface. Omit `async` (or pass false) and consume the streaming response via `onEvent` instead.',
       });
-      assertString(handle.jobId, 'AsyncJobHandle.jobId');
-      assertString(handle.statusUrl, 'AsyncJobHandle.statusUrl');
-      return this.pollUntilComplete(handle, input.onEvent);
     }
     return this.streamGenerate(input);
   }
@@ -101,59 +85,34 @@ export class AlmadarClient {
         model: input.model,
         catalogMode: input.catalogMode,
         stdAllowList: input.stdAllowList,
+        pin: input.pin,
       }),
     });
     if (!res.ok) throw await this.errorFromResponse(res);
     if (res.body === null) throw new Error('AlmadarClient.generate: server returned no body');
 
     let final: GenerateResult | null = null;
+    let meta: GenerateMeta | undefined;
     for await (const raw of parseSSE(res.body)) {
       const event = parseSseEvent(raw.data);
       if (event === null) continue;
       input.onEvent?.(event);
-      if (event.type === 'complete') {
+      if (event.type === 'generation_meta') {
+        meta = event.data;
+      } else if (event.type === 'complete') {
         if (event.data.schema === undefined) {
-          throw new ServerError({ code: 500, message: '`complete` event did not contain a schema' });
+          throw new ServerError({ code: API_ERROR_CODES.SERVER, message: '`complete` event did not contain a schema' });
         }
         const schema = parseOrbitalSchema(event.data.schema);
-        final = { schema, appId: event.data.appId };
+        final = { schema, appId: event.data.appId, meta };
       } else if (event.type === 'error') {
-        throw errorFromBody({ code: 500, message: event.data.error });
+        throw streamErrorFromEvent(event.data);
       }
     }
     if (final === null) {
-      throw new ServerError({ code: 500, message: 'SSE stream ended without `complete` event' });
+      throw new ServerError({ code: API_ERROR_CODES.SERVER, message: 'SSE stream ended without `complete` event' });
     }
     return final;
-  }
-
-  private async pollUntilComplete(
-    handle: AsyncJobHandle,
-    onEvent: GenerateOptions['onEvent'],
-  ): Promise<GenerateResult> {
-    let attempt = 0;
-    for (;;) {
-      const delay = POLL_BACKOFF_MS[Math.min(attempt, POLL_BACKOFF_MS.length - 1)];
-      await sleep(delay);
-      attempt += 1;
-      const status = await this.requestJson<JobStatus>('GET', handle.statusUrl);
-      assertString(status.state, 'JobStatus.state');
-      if (status.events !== undefined && onEvent !== undefined) {
-        for (const e of status.events) onEvent(e);
-      }
-      if (status.state === 'complete') {
-        if (status.result === undefined) {
-          throw new ServerError({ code: 500, message: 'Job complete but no result returned' });
-        }
-        return status.result;
-      }
-      if (status.state === 'error') {
-        throw errorFromBody({
-          code: status.errorCode ?? 500,
-          message: status.errorMessage ?? 'Job failed',
-        });
-      }
-    }
   }
 
   private async requestJson<T>(method: string, path: string, body?: object): Promise<T> {
@@ -171,7 +130,7 @@ export class AlmadarClient {
     if (!res.ok) throw await this.errorFromResponse(res);
     const text = await res.text();
     if (text === '') {
-      throw new ServerError({ code: 500, message: 'Empty response body' });
+      throw new ServerError({ code: API_ERROR_CODES.SERVER, message: 'Empty response body' });
     }
     const parsed: T = JSON.parse(text);
     return parsed;
@@ -215,12 +174,13 @@ export class AlmadarClient {
 }
 
 /**
- * Parse one SSE `data:` line into the canonical `SSEEvent` union.
- * The server is the trusted emitter, so we validate only the envelope
- * (object with string `type` and numeric `timestamp`) and cast to the
- * discriminated union. Malformed lines are ignored.
+ * Parse one SSE `data:` line into the `GenerateStreamEvent` union. The server
+ * is the trusted emitter, so we validate only the envelope (object with
+ * string `type` and numeric `timestamp`) and cast to the canonical `SSEEvent`
+ * union — except `generation_meta`, which is SDK-only and goes through the
+ * `isGenerateMeta` runtime guard instead of a cast. Malformed lines are ignored.
  */
-function parseSseEvent(dataLine: string): SSEEvent | null {
+function parseSseEvent(dataLine: string): GenerateStreamEvent | null {
   if (dataLine === '') return null;
   let payload;
   try {
@@ -230,15 +190,16 @@ function parseSseEvent(dataLine: string): SSEEvent | null {
   }
   if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return null;
   if (typeof payload.type !== 'string' || typeof payload.timestamp !== 'number') return null;
+  if (payload.type === 'generation_meta') {
+    return isGenerateMeta(payload.data)
+      ? { type: 'generation_meta', data: payload.data, timestamp: payload.timestamp }
+      : null;
+  }
   return payload as SSEEvent;
 }
 
 function assertString(v: string | undefined, name: string): asserts v is string {
   if (typeof v !== 'string' || v === '') {
-    throw new ServerError({ code: 500, message: `Malformed server response: ${name} is not a string` });
+    throw new ServerError({ code: API_ERROR_CODES.SERVER, message: `Malformed server response: ${name} is not a string` });
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

@@ -12,7 +12,7 @@
 
 import type { OrbitalSchema } from '@almadar/core';
 import { AlmadarClient } from '../client/AlmadarClient';
-import type { EditSchemaRequest, EditSchemaPatch, GenerateRequest, SSEEvent } from '../types';
+import type { EditSchemaRequest, EditSchemaPatch, GenerateRequest, GenerateStreamEvent, SSEEvent } from '../types';
 
 // ============================================================================
 // Public option surface
@@ -40,7 +40,7 @@ function resolveEndUserId(opts: GenerateHandlerOptions, req: Request): string | 
   return typeof header === 'string' && header.length > 0 ? header : undefined;
 }
 
-function encodeSseEvent(event: SSEEvent): string {
+function encodeSseEvent(event: GenerateStreamEvent): string {
   return `data: ${JSON.stringify(event)}\n\n`;
 }
 
@@ -91,7 +91,7 @@ export function createGenerateHandler(
             prompt,
             endUserId,
             appId,
-            onEvent: (event: SSEEvent) => {
+            onEvent: (event: GenerateStreamEvent) => {
               controller.enqueue(encoder.encode(encodeSseEvent(event)));
             },
           });
