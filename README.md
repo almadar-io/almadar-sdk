@@ -32,6 +32,40 @@ Three render modes:
 | `mock` | In-browser fake server, faker-seeded if no `data` | Demos, design previews |
 | `server` | Real backend at `serverUrl` | Production with persist/fetch/call-service |
 
+## Host plugins
+
+`@almadar/sdk/react` also re-exports the host-plugin surface from `@almadar/ui/runtime`: a plugin is just an ordinary `.orb` behavior that `OrbitalPluginHost` runs headless against your app's own event bus and slots — nothing about it is a new kind of artifact or a sandboxed capability tier.
+
+```tsx
+'use client';
+import { EventBusProvider } from '@almadar/ui/providers';
+import { UISlotProvider } from '@almadar/ui/context';
+import { UISlotComponent } from '@almadar/ui/components';
+import { OrbitalPluginHost } from '@almadar/sdk/react';
+import myPlugin from './my-plugin.orb.json';
+
+export default function Host() {
+  return (
+    <EventBusProvider>
+      <UISlotProvider>
+        <OrbitalPluginHost
+          plugins={[
+            {
+              id: 'my-plugin',
+              schema: myPlugin,
+              inbound: [{ busEvent: 'MY_EVENT', orbital: 'MyPluginOrbital', trait: 'MyTrait', trigger: 'MY_EVENT' }],
+            },
+          ]}
+        />
+        <UISlotComponent slot="sidebar" />
+      </UISlotProvider>
+    </EventBusProvider>
+  );
+}
+```
+
+Nothing is denied by default — the plugin gets the same behavior power any preview has (in-memory persist, mock services). `deny` (an opt-in list of verbs like `'persist'` or `'call-service'`) and `mode` (`'mock'` vs `'server'`) are host policy you set, not a built-in restriction. See `docs/Almadar_Studio_SDK.md` for the full design (Almadar Studio V4 §14).
+
 ## Call the agent from your server
 
 ```ts

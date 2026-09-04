@@ -47,5 +47,20 @@ export default defineConfig({
     include: ['src/**/__tests__/**/*.test.ts', 'src/**/__tests__/**/*.test.tsx'],
     globals: true,
     environment: 'happy-dom',
+    server: {
+      // @almadar/ui's compiled ESM (dist/components/index.js) has a static
+      // `import { ordered, lib } from 'emojilib'` (EmojiPicker, pulled in via
+      // PropertyInspector). emojilib is CJS (`module.exports = { lib, ordered,
+      // fitzpatrick_scale_modifiers }`); left external, Vitest loads it through
+      // Node's native ESM/CJS interop, whose cjs-module-lexer static analysis
+      // only recovers `lib` from that object literal and drops `ordered` —
+      // "Named export 'ordered' not found". Inlining routes it through Vite's
+      // own transform, which resolves CJS named exports by runtime property
+      // enumeration instead, matching apps/builder/packages/client/vite.config.ts's
+      // `server.deps.inline` handling of @almadar/ui's other CJS deps.
+      deps: {
+        inline: [/@almadar\/ui/, /packages\/almadar-ui/, /emojilib/],
+      },
+    },
   },
 });

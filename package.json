@@ -1,6 +1,6 @@
 {
   "name": "@almadar/sdk",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Almadar SDK — embed agent-generated orbital schemas in your React app. AlmadarApp component + AlmadarClient HTTP client.",
   "type": "module",
   "main": "./dist/index.js",
@@ -46,9 +46,9 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@almadar/core": "^10.80.0",
-    "@almadar/runtime": "^6.69.0",
-    "@almadar/ui": "^6.3.0"
+    "@almadar/core": "^10.83.0",
+    "@almadar/runtime": "^6.70.0",
+    "@almadar/ui": "^6.6.0"
   },
   "peerDependencies": {
     "react": ">=18.0.0",

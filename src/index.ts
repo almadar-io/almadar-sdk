@@ -4,7 +4,7 @@
  * for the full integration guide.
  *
  * Subpath imports for environment-specific entry points:
- *   - `@almadar/sdk/react`  : `<AlmadarApp />`, `useOrbBus()` (browser/SSR)
+ *   - `@almadar/sdk/react`  : `<AlmadarApp />`, `useOrbBus()`, `<OrbitalPluginHost />` (browser/SSR)
  *   - `@almadar/sdk/client` : `AlmadarClient`, error classes (server / Node)
  *
  * The root `@almadar/sdk` barrel re-exports both for ergonomic single-import
@@ -13,6 +13,22 @@
 
 export { AlmadarApp } from './react/AlmadarApp';
 export { useOrbBus } from './react/useOrbBus';
+export {
+  OrbitalPluginHost,
+  useOrbitalPluginHost,
+  useDeclaredCaptureTable,
+  useKeyboardRouter,
+} from './react/plugins';
+export type {
+  OrbitalPluginHostProps,
+  PluginHostPlugin,
+  PluginHostInbound,
+  PluginHostDenyVerb,
+  KeyCaptureTable,
+  KeyCaptureEntry,
+  EditorKeyEvent,
+  UseKeyboardRouterOptions,
+} from './react/plugins';
 export { AlmadarClient } from './client/AlmadarClient';
 export {
   AlmadarError,
