@@ -18,6 +18,7 @@ export {
   useOrbitalPluginHost,
   useDeclaredCaptureTable,
   useKeyboardRouter,
+  mergeCaptureTables,
   assertUniqueSlotsPerHost,
   UISlotComponent,
 } from './react/plugins';

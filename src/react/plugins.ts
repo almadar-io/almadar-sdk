@@ -31,7 +31,7 @@ export type {
   SlotHostManifest,
 } from '@almadar/ui/runtime';
 
-export { useKeyboardRouter } from '@almadar/ui/hooks';
+export { useKeyboardRouter, mergeCaptureTables } from '@almadar/ui/hooks';
 export type { KeyCaptureTable, KeyCaptureEntry, EditorKeyEvent, UseKeyboardRouterOptions } from '@almadar/ui/hooks';
 
 // UISlotComponent — the mount primitive a slot-host manifest's regions are
