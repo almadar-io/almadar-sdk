@@ -6,6 +6,8 @@ export {
   useOrbitalPluginHost,
   useDeclaredCaptureTable,
   useKeyboardRouter,
+  assertUniqueSlotsPerHost,
+  UISlotComponent,
 } from './plugins';
 export type {
   OrbitalPluginHostProps,
@@ -16,6 +18,9 @@ export type {
   KeyCaptureEntry,
   EditorKeyEvent,
   UseKeyboardRouterOptions,
+  SlotHostRegion,
+  SlotHostManifest,
+  UISlotComponentProps,
 } from './plugins';
 export type {
   AlmadarAppProps,

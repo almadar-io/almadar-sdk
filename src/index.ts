@@ -18,6 +18,8 @@ export {
   useOrbitalPluginHost,
   useDeclaredCaptureTable,
   useKeyboardRouter,
+  assertUniqueSlotsPerHost,
+  UISlotComponent,
 } from './react/plugins';
 export type {
   OrbitalPluginHostProps,
@@ -28,6 +30,9 @@ export type {
   KeyCaptureEntry,
   EditorKeyEvent,
   UseKeyboardRouterOptions,
+  SlotHostRegion,
+  SlotHostManifest,
+  UISlotComponentProps,
 } from './react/plugins';
 export { AlmadarClient } from './client/AlmadarClient';
 export {

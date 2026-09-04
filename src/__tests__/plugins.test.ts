@@ -14,6 +14,9 @@ vi.mock('@almadar/ui/runtime', () => ({
   useDeclaredCaptureTable: function useDeclaredCaptureTable() {
     return {};
   },
+  assertUniqueSlotsPerHost: function assertUniqueSlotsPerHost() {
+    return undefined;
+  },
 }));
 
 vi.mock('@almadar/ui/hooks', () => ({
@@ -22,11 +25,19 @@ vi.mock('@almadar/ui/hooks', () => ({
   },
 }));
 
+vi.mock('@almadar/ui', () => ({
+  UISlotComponent: function UISlotComponent() {
+    return null;
+  },
+}));
+
 import {
   OrbitalPluginHost,
   useOrbitalPluginHost,
   useDeclaredCaptureTable,
   useKeyboardRouter,
+  assertUniqueSlotsPerHost,
+  UISlotComponent,
 } from '../react/plugins';
 
 describe('@almadar/sdk/react plugin re-exports', () => {
@@ -44,5 +55,13 @@ describe('@almadar/sdk/react plugin re-exports', () => {
 
   it('re-exports useKeyboardRouter from @almadar/ui/hooks', () => {
     expect(typeof useKeyboardRouter).toBe('function');
+  });
+
+  it('re-exports assertUniqueSlotsPerHost from @almadar/ui/runtime', () => {
+    expect(typeof assertUniqueSlotsPerHost).toBe('function');
+  });
+
+  it('re-exports UISlotComponent from @almadar/ui', () => {
+    expect(typeof UISlotComponent).toBe('function');
   });
 });
