@@ -14,13 +14,13 @@ importers:
       '@almadar/runtime':
         specifier: ^6.92.0
         version: 6.92.0(@aws-sdk/credential-provider-node@3.972.84)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(express@4.22.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(ws@8.21.0)
-      '@almadar/ui':
-        specifier: ^6.38.0
-        version: 6.38.0(@aws-sdk/credential-provider-node@3.972.84)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(@tanstack/react-query@5.101.2(react@18.3.1))(@types/react@18.3.31)(express@4.22.2)(postcss@8.5.16)(react-dom@18.3.1(react@18.3.1))(react-router-dom@7.18.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)(ws@8.21.0)
     devDependencies:
       '@almadar/eslint-plugin':
         specifier: ^2.20.0
         version: 2.20.0(eslint@10.0.0)
+      '@almadar/ui':
+        specifier: ^6.38.0
+        version: 6.38.0(@aws-sdk/credential-provider-node@3.972.84)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(@tanstack/react-query@5.101.2(react@18.3.1))(@types/react@18.3.31)(express@4.22.2)(postcss@8.5.16)(react-dom@18.3.1(react@18.3.1))(react-router-dom@7.18.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react@18.3.1)(ws@8.21.0)
       '@testing-library/dom':
         specifier: ^10.4.0
         version: 10.4.1
